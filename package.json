@@ -1,0 +1,9 @@
+{
+  "name": "duitku_kulacak_bot",
+  "version": "1.0.0",
+  "description": "Telegram Bot duitku_kulacak_bot",
+  "main": "index.js",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}

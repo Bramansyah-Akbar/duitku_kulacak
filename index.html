@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LedgerMind Live Mobile</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Supabase JS SDK CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen antialiased select-none">
+
+    <!-- STICKY HEADER -->
+    <header class="border-b border-slate-900 bg-slate-950/80 backdrop-blur sticky top-0 z-50 px-4 py-3 flex justify-between items-center">
+        <div>
+            <h1 class="text-base font-bold text-white flex items-center gap-1.5">
+                <span class="text-teal-400">⚡</span> LedgerMind
+            </h1>
+            <p class="text-[10px] text-slate-400">Periode: <span class="text-teal-400 font-medium">Juni 2026</span></p>
+        </div>
+        <div class="flex items-center gap-2">
+            <span id="db-status-dot" class="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
+            <span id="db-status-text" class="text-[11px] text-slate-400 font-mono">Connecting...</span>
+        </div>
+    </header>
+
+    <main class="px-4 py-4 space-y-6 max-w-md mx-auto">
+
+        <!-- SECTION 1: CORE STATS -->
+        <section class="grid grid-cols-2 gap-3">
+            <div class="bg-slate-900 border border-slate-800/80 rounded-xl p-3.5">
+                <span class="text-[10px] font-medium text-slate-400 uppercase tracking-wider block">Net Worth</span>
+                <span id="stat-net-worth" class="text-lg font-bold text-white block mt-0.5">Rp 0</span>
+            </div>
+            <div class="bg-slate-900 border border-teal-900/50 rounded-xl p-3.5 bg-gradient-to-br from-teal-950/20 to-slate-900">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-medium text-teal-400 uppercase tracking-wider block">Tabungan</span>
+                    <span class="text-[9px] px-1 bg-teal-500/10 text-teal-400 rounded">Target</span>
+                </div>
+                <span class="text-lg font-bold text-white block mt-0.5">Rp 2.000.000</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800/80 rounded-xl p-3.5">
+                <span class="text-[10px] font-medium text-emerald-400 uppercase tracking-wider block">Pemasukan</span>
+                <span id="stat-income" class="text-base font-bold text-emerald-400 block mt-0.5">Rp 0</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800/80 rounded-xl p-3.5">
+                <span class="text-[10px] font-medium text-rose-400 uppercase tracking-wider block">Pengeluaran</span>
+                <span id="stat-expense" class="text-base font-bold text-rose-400 block mt-0.5">Rp 0</span>
+            </div>
+        </section>
+
+        <!-- SECTION 2: VERTICAL ACCOUNT BALANCES -->
+        <section class="space-y-2.5">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1">Saldo Akun Dompet</h2>
+            <div id="account-container" class="grid grid-cols-2 gap-2">
+                <!-- Loading State / Data akan disuntik dari JS -->
+                <p class="text-xs text-slate-500 col-span-2 text-center py-4">Memuat saldo dompet...</p>
+            </div>
+        </section>
+
+        <!-- SECTION 3: MOBILE TRANSACTION FEED -->
+        <section class="space-y-2.5">
+            <div class="flex justify-between items-center px-1">
+                <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Riwayat Aliran Dana</h2>
+                <span class="text-[10px] text-slate-500 font-mono">5 Terakhir</span>
+            </div>
+
+            <div id="transaction-container" class="space-y-2">
+                <!-- Data akan disuntik dari JS -->
+                <p class="text-xs text-slate-500 text-center py-4">Belum ada transaksi tercatat.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ==========================================
+         SUPABASE CORE LOGIC (JAVASCRIPT)
+         ========================================== -->
+    <script>
+        // 🛠️ TUGAS KAMU: Ganti dengan URL dan Anon Key milik Supabase-mu sendiri
+        const SUPABASE_URL = 'https://plsgjjlpxkixwlwqsyjb.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsc2dqamxweGtpeHdsd3FzeWpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzQ2NTUsImV4cCI6MjA5Njg1MDY1NX0.KS8Z5YLsB8Q6jgChlK2NozZ4ZTbEuAT6EeGVOn5xc6M';
+
+        // Inisialisasi Supabase Client
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Helper untuk memformat angka ke Rupiah versi ringkas khusus HP
+        function formatRupiah(angka) {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                maximumFractionDigits: 0
+            }).format(angka);
+        }
+
+        // Fungsi Utama untuk mengambil data dari Supabase
+        async function loadDashboardData() {
+            try {
+                // 1. Ambil Data Akun (Balances)
+                const { data: accounts, error: accountError } = await supabaseClient
+                    .from('accounts')
+                    .select('*')
+                    .order('name', { ascending: true });
+
+                if (accountError) throw accountError;
+
+                // Hitung Total Net Worth
+                let totalNetWorth = 0;
+                let accountHTML = '';
+
+                accounts.forEach(acc => {
+                    totalNetWorth += parseFloat(acc.current_balance);
+                    
+                    // Beri emoji pembeda berdasarkan tipe akun
+                    let emoji = '💵';
+                    if (acc.type === 'bank') emoji = '🔹';
+                    if (acc.type === 'e-wallet') emoji = '🟢';
+
+                    accountHTML += `
+                        <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800/60 flex flex-col justify-between">
+                            <span class="text-xs text-slate-400 flex items-center gap-1">${emoji} ${acc.name}</span>
+                            <span class="text-sm font-bold text-white mt-1">${formatRupiah(acc.current_balance)}</span>
+                        </div>
+                    `;
+                });
+
+                // Update UI Net Worth & Daftar Akun
+                document.getElementById('stat-net-worth').innerText = formatRupiah(totalNetWorth);
+                document.getElementById('account-container').innerHTML = accountHTML;
+
+                // 2. Ambil Data Transaksi (5 Terakhir)
+                const { data: transactions, error: txError } = await supabaseClient
+                    .from('transactions')
+                    .select(`
+                        id, date, type, amount, note,
+                        from_account:from_account_id(name),
+                        to_account:to_account_id(name),
+                        category:category_id(name)
+                    `)
+                    .order('date', { ascending: false })
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+
+                if (txError) throw txError;
+
+                // Render Feed Transaksi jika ada data
+                if (transactions && transactions.length > 0) {
+                    let txHTML = '';
+                    transactions.forEach(tx => {
+                        let badgeColor = 'bg-slate-500/10 text-slate-400';
+                        let txEmoji = '🔄';
+                        let amountSign = '';
+                        let flowText = '';
+
+                        if (tx.type === 'EXPENSE') {
+                            badgeColor = 'bg-rose-500/10 text-rose-400';
+                            txEmoji = '💸';
+                            amountSign = '-';
+                            flowText = `${tx.from_account?.name || 'Unknown'} <span class="text-slate-600">→</span> ${tx.category?.name || 'Expense'}`;
+                        } else if (tx.type === 'INCOME') {
+                            badgeColor = 'bg-emerald-500/10 text-emerald-400';
+                            txEmoji = '💰';
+                            amountSign = '+';
+                            flowText = `${tx.note || 'Income'} <span class="text-slate-600">→</span> ${tx.to_account?.name || 'Unknown'}`;
+                        } else if (tx.type === 'TRANSFER') {
+                            txEmoji = '🔄';
+                            flowText = `${tx.from_account?.name || 'Unknown'} <span class="text-teal-400">→</span> ${tx.to_account?.name || 'Unknown'}`;
+                        }
+
+                        txHTML += `
+                            <div class="bg-slate-900 border border-slate-800/60 rounded-xl p-3 flex justify-between items-center">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class="h-9 w-9 rounded-lg ${badgeColor} flex items-center justify-center shrink-0 font-bold text-sm">${txEmoji}</div>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-medium text-white truncate">${tx.note || 'Tanpa Catatan'}</p>
+                                        <p class="text-[11px] text-slate-400 truncate">${flowText}</p>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0 ml-2">
+                                    <span class="text-sm font-bold ${tx.type === 'EXPENSE' ? 'text-rose-400' : tx.type === 'INCOME' ? 'text-emerald-400' : 'text-slate-300'} font-mono">
+                                        ${amountSign}${formatRupiah(tx.amount)}
+                                    </span>
+                                    <span class="text-[10px] text-slate-500 block font-mono">${tx.date}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    document.getElementById('transaction-container').innerHTML = txHTML;
+                }
+
+                // Ubah status header menjadi Sukses terhubung
+                document.getElementById('db-status-dot').className = "h-2 w-2 rounded-full bg-emerald-500 animate-pulse";
+                document.getElementById('db-status-text').innerText = "Live DB Connected";
+
+            } catch (err) {
+                console.error("Sistem Error:", err.message);
+                document.getElementById('db-status-dot').className = "h-2 w-2 rounded-full bg-rose-500";
+                document.getElementById('db-status-text').innerText = "Connection Error";
+            }
+        }
+
+        // Jalankan fungsi otomatis saat halaman selesai dimuat
+        document.addEventListener('DOMContentLoaded', loadDashboardData);
+    </script>
+</body>
+</html>
