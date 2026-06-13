@@ -11,6 +11,16 @@
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen antialiased select-none">
 
+    <!-- Struktur Gerbang Login -->
+<div id="login-screen">
+    <div class="login-box">
+        <h3>⚡ LedgerMind Lock</h3>
+        <input type="password" id="pass-input" placeholder="Masukkan Password Key" onkeypress="handleKeyPress(event)">
+        <button onclick="checkPassword()">Buka Dashboard</button>
+        <div id="error-msg" class="login-error">Password salah, Bram! ❌</div>
+    </div>
+</div>
+
     <!-- STICKY HEADER -->
     <header class="border-b border-slate-900 bg-slate-950/80 backdrop-blur sticky top-0 z-50 px-4 py-3 flex justify-between items-center">
         <div>
@@ -202,6 +212,115 @@
 
         // Jalankan fungsi otomatis saat halaman selesai dimuat
         document.addEventListener('DOMContentLoaded', loadDashboardData);
+
+        // 1. Tentukan password default kamu di sini (Silakan diganti sesuai selera)
+const MY_SECRET_PASSWORD = "duitaingkucatat"; 
+
+// 2. Fungsi otomatis saat halaman dimuat
+document.addEventListener("DOMContentLoaded", () => {
+    // Cek apakah di browser sudah tersimpan status "sudah login"
+    if (localStorage.getItem("isLoggedIn") === "true") {
+        document.getElementById("login-screen").style.display = "none";
+        initDashboard(); // Jalankan fungsi ambil data Supabase kamu yang sudah work kemarin
+    }
+});
+
+// 3. Fungsi memeriksa password
+function checkPassword() {
+    const inputVal = document.getElementById("pass-input").value;
+    const errorMsg = document.getElementById("error-msg");
+
+    if (inputVal === MY_SECRET_PASSWORD) {
+        localStorage.setItem("isLoggedIn", "true"); // Simpan status di browser
+        document.getElementById("login-screen").style.display = "none"; // Sembunyikan layar login
+        initDashboard(); // Panggil fungsi load data Supabase kamu
+    } else {
+        errorMsg.style.display = "block"; // Munculkan teks error
+        document.getElementById("pass-input").value = ""; // Kosongkan form
+    }
+}
+
+// 4. Fitur opsional: Pencet Enter langsung login
+function handleKeyPress(event) {
+    if (event.key === "Enter") {
+        checkPassword();
+    }
+}
+
+// Fungsi pembungkus load data Supabase kamu yang kemarin (sesuaikan dengan nama fungsimu ya)
+function initDashboard() {
+    // Taruh seluruh kode fetch data accounts, transactions, 
+    // dan update UI yang sudah berhasil kamu jalankan kemarin di dalam sini.
+    console.log("Memuat data rahasia dari Supabase...");
+}
     </script>
 </body>
+
+<style>
+    /* Overlay Layar Login */
+#login-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #0d1117; /* Warna gelap matching dashboard */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999; /* Memastikan berada di paling atas */
+}
+
+.login-box {
+    background-color: #161b22;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    width: 320px;
+    border: 1px solid #30363d;
+}
+
+.login-box h3 {
+    color: #58a6ff;
+    margin-bottom: 20px;
+    font-family: sans-serif;
+}
+
+.login-box input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #30363d;
+    background-color: #0d1117;
+    color: #c9d1d9;
+    border-radius: 6px;
+    box-sizing: border-box;
+    text-align: center;
+    font-size: 16px;
+}
+
+.login-box button {
+    width: 100%;
+    padding: 10px;
+    background-color: #238636; /* Hijau sukses */
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.login-box button:hover {
+    background-color: #2ea44f;
+}
+
+.login-error {
+    color: #ff7b72;
+    font-size: 14px;
+    margin-top: 10px;
+    display: none;
+}
+</style>
 </html>
