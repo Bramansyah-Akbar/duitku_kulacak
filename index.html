@@ -8,6 +8,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- Supabase JS SDK CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen antialiased select-none">
 
@@ -38,25 +40,46 @@
     <main class="px-4 py-4 space-y-6 max-w-md mx-auto">
 
         <!-- SECTION 1: CORE STATS -->
-        <section class="grid grid-cols-2 gap-3">
-            <div class="bg-slate-900 border border-slate-800/80 rounded-xl p-3.5">
+        <section class="space-y-3">
+            <div class="bg-slate-900 border border-slate-800/80 rounded-xl p-3.5 text-center">
                 <span class="text-[10px] font-medium text-slate-400 uppercase tracking-wider block">Net Worth</span>
-                <span id="stat-net-worth" class="text-lg font-bold text-white block mt-0.5">Rp 0</span>
+                <span id="stat-net-worth" class="text-2xl font-bold text-white block mt-0.5">Rp 0</span>
             </div>
-            <div class="bg-slate-900 border border-teal-900/50 rounded-xl p-3.5 bg-gradient-to-br from-teal-950/20 to-slate-900">
-                <div class="flex justify-between items-center">
-                    <span class="text-[10px] font-medium text-teal-400 uppercase tracking-wider block">Tabungan</span>
-                    <span class="text-[9px] px-1 bg-teal-500/10 text-teal-400 rounded">Target</span>
+
+            <div class="bg-slate-900 border border-emerald-900/50 rounded-xl p-3.5">
+                <span class="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block mb-2 border-b border-emerald-900/30 pb-1">Pemasukan</span>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                        <span class="text-[9px] text-slate-500 uppercase block">Harian</span>
+                        <span id="stat-income-daily" class="text-xs font-bold text-emerald-300 block mt-0.5">Rp 0</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-slate-500 uppercase block">Mingguan</span>
+                        <span id="stat-income-weekly" class="text-xs font-bold text-emerald-300 block mt-0.5">Rp 0</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-slate-500 uppercase block">Bulanan</span>
+                        <span id="stat-income-monthly" class="text-xs font-bold text-emerald-300 block mt-0.5">Rp 0</span>
+                    </div>
                 </div>
-                <span class="text-lg font-bold text-white block mt-0.5">Rp 2.000.000</span>
             </div>
-            <div class="bg-slate-900 border border-slate-800/80 rounded-xl p-3.5">
-                <span class="text-[10px] font-medium text-emerald-400 uppercase tracking-wider block">Pemasukan</span>
-                <span id="stat-income" class="text-base font-bold text-emerald-400 block mt-0.5">Rp 0</span>
-            </div>
-            <div class="bg-slate-900 border border-slate-800/80 rounded-xl p-3.5">
-                <span class="text-[10px] font-medium text-rose-400 uppercase tracking-wider block">Pengeluaran</span>
-                <span id="stat-expense" class="text-base font-bold text-rose-400 block mt-0.5">Rp 0</span>
+
+            <div class="bg-slate-900 border border-rose-900/50 rounded-xl p-3.5">
+                <span class="text-[11px] font-bold text-rose-400 uppercase tracking-wider block mb-2 border-b border-rose-900/30 pb-1">Pengeluaran</span>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                        <span class="text-[9px] text-slate-500 uppercase block">Harian</span>
+                        <span id="stat-expense-daily" class="text-xs font-bold text-rose-300 block mt-0.5">Rp 0</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-slate-500 uppercase block">Mingguan</span>
+                        <span id="stat-expense-weekly" class="text-xs font-bold text-rose-300 block mt-0.5">Rp 0</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-slate-500 uppercase block">Bulanan</span>
+                        <span id="stat-expense-monthly" class="text-xs font-bold text-rose-300 block mt-0.5">Rp 0</span>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -66,6 +89,14 @@
             <div id="account-container" class="grid grid-cols-2 gap-2">
                 <!-- Loading State / Data akan disuntik dari JS -->
                 <p class="text-xs text-slate-500 col-span-2 text-center py-4">Memuat saldo dompet...</p>
+            </div>
+        </section>
+
+        <!-- SECTION CHART: GRAFIK ARUS KAS -->
+        <section class="space-y-2.5">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1">Grafik Arus Kas (Bulan Ini)</h2>
+            <div class="bg-slate-900 border border-slate-800/80 rounded-xl p-3.5">
+                <canvas id="cashflowChart" height="200"></canvas>
             </div>
         </section>
 
@@ -104,6 +135,62 @@
             }).format(angka);
         }
 
+        let cashflowChartInstance = null;
+
+        function renderChart(labels, incomeData, expenseData) {
+            const ctx = document.getElementById('cashflowChart').getContext('2d');
+            
+            if (cashflowChartInstance) {
+                cashflowChartInstance.destroy();
+            }
+            
+            cashflowChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Pemasukan',
+                            data: incomeData,
+                            backgroundColor: '#34d399', // emerald-400
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Pengeluaran',
+                            data: expenseData,
+                            backgroundColor: '#fb7185', // rose-400
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#334155' }, // slate-700
+                            ticks: {
+                                color: '#94a3b8', // slate-400
+                                callback: function(value) {
+                                    if(value >= 1000000) return (value / 1000000) + 'M';
+                                    if(value >= 1000) return (value / 1000) + 'K';
+                                    return value;
+                                }
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', maxTicksLimit: 7 }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#cbd5e1' } } // slate-300
+                    }
+                }
+            });
+        }
+
         // Fungsi Utama untuk mengambil data dari Supabase
         async function loadDashboardData() {
             try {
@@ -139,7 +226,69 @@
                 document.getElementById('stat-net-worth').innerText = formatRupiah(totalNetWorth);
                 document.getElementById('account-container').innerHTML = accountHTML;
 
-                // 2. Ambil Data Transaksi (5 Terakhir)
+                // 2. Ambil Data Statistik untuk Harian, Mingguan, Bulanan
+                const now = new Date();
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+                
+                // Ambil Transaksi Bulan Ini
+                const { data: monthTransactions, error: monthTxError } = await supabaseClient
+                    .from('transactions')
+                    .select('*')
+                    .gte('date', startOfMonth)
+                    .order('date', { ascending: true });
+
+                if (monthTxError) throw monthTxError;
+
+                let income = { daily: 0, weekly: 0, monthly: 0 };
+                let expense = { daily: 0, weekly: 0, monthly: 0 };
+                
+                const today = new Date();
+                const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                
+                const currentDay = today.getDay(); // 0 = Sunday
+                const diff = today.getDate() - currentDay + (currentDay === 0 ? -6 : 1); // Senin sbg hari pertama
+                const firstDayOfWeek = new Date(today);
+                firstDayOfWeek.setDate(diff);
+                firstDayOfWeek.setHours(0,0,0,0);
+
+                const dailyData = {};
+
+                monthTransactions.forEach(tx => {
+                    const txDate = new Date(tx.date);
+                    const amount = parseFloat(tx.amount);
+                    const dateStr = tx.date.split('T')[0];
+                    const isToday = dateStr === todayStr;
+                    const isThisWeek = txDate >= firstDayOfWeek;
+                    
+                    if (!dailyData[dateStr]) dailyData[dateStr] = { income: 0, expense: 0 };
+
+                    if (tx.type === 'INCOME') {
+                        income.monthly += amount;
+                        if (isThisWeek) income.weekly += amount;
+                        if (isToday) income.daily += amount;
+                        dailyData[dateStr].income += amount;
+                    } else if (tx.type === 'EXPENSE') {
+                        expense.monthly += amount;
+                        if (isThisWeek) expense.weekly += amount;
+                        if (isToday) expense.daily += amount;
+                        dailyData[dateStr].expense += amount;
+                    }
+                });
+
+                document.getElementById('stat-income-daily').innerText = formatRupiah(income.daily);
+                document.getElementById('stat-income-weekly').innerText = formatRupiah(income.weekly);
+                document.getElementById('stat-income-monthly').innerText = formatRupiah(income.monthly);
+
+                document.getElementById('stat-expense-daily').innerText = formatRupiah(expense.daily);
+                document.getElementById('stat-expense-weekly').innerText = formatRupiah(expense.weekly);
+                document.getElementById('stat-expense-monthly').innerText = formatRupiah(expense.monthly);
+
+                const chartLabels = Object.keys(dailyData).sort();
+                const incomeData = chartLabels.map(d => dailyData[d].income);
+                const expenseData = chartLabels.map(d => dailyData[d].expense);
+                renderChart(chartLabels, incomeData, expenseData);
+
+                // 3. Ambil Data Transaksi (5 Terakhir)
                 const { data: transactions, error: txError } = await supabaseClient
                     .from('transactions')
                     .select(`
@@ -210,8 +359,8 @@
             }
         }
 
-        // Jalankan fungsi otomatis saat halaman selesai dimuat
-        document.addEventListener('DOMContentLoaded', loadDashboardData);
+        // Panggil setelah melewati gerbang Login, bukan saat DOMContentLoaded saja
+        // document.addEventListener('DOMContentLoaded', loadDashboardData);
 
         // 1. Tentukan password default kamu di sini (Silakan diganti sesuai selera)
 const MY_SECRET_PASSWORD = "duitaingkucatat"; 
@@ -252,6 +401,7 @@ function initDashboard() {
     // Taruh seluruh kode fetch data accounts, transactions, 
     // dan update UI yang sudah berhasil kamu jalankan kemarin di dalam sini.
     console.log("Memuat data rahasia dari Supabase...");
+    loadDashboardData();
 }
     </script>
 </body>
